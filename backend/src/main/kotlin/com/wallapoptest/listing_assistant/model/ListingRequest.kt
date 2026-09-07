@@ -1,11 +1,13 @@
 package com.wallapoptest.listing_assistant.model
 
-import jakarta.validation.constraints.Digits
-import java.math.BigDecimal
+import com.fasterxml.jackson.annotation.JsonSetter
+import com.fasterxml.jackson.annotation.Nulls
+import jakarta.validation.Valid
 
 data class ListingRequest(
     val title: String,
+    @param:JsonSetter(contentNulls = Nulls.FAIL)
     val tags: List<String>,
-    @field:Digits(integer = Int.MAX_VALUE, fraction = 2)
-    val price: BigDecimal,
+    @field:Valid
+    val priceRange: PriceRange,
 )

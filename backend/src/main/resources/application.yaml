@@ -1,19 +1,28 @@
 spring:
   application:
     name: listing-assistant
-
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.google.genai.autoconfigure.embedding.GoogleGenAiEmbeddingConnectionAutoConfiguration
   ai:
-    vertex:
-      ai:
-        gemini:
-          api-key: ${GEMINI_API_KEY:AQ.mock-key}
-          model-name: gemini-1.5-flash
-          chat:
-            options:
-              model: gemini-1.5-flash
-              temperature: 0.7
+    model:
+      chat: none
+      embedding:
+        text: none
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+      fail-on-trailing-tokens: true
 
 app:
   ai:
     mock-mode: ${MOCK_MODE:true}
+    mock-scenario: ${MOCK_SCENARIO:VALID}
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
+    timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:20}
 
+# BeanOutputConverter logs raw model output on conversion errors; keep it out of logs.
+logging:
+  level:
+    org.springframework.ai.converter.BeanOutputConverter: OFF

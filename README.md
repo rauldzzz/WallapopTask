@@ -21,12 +21,101 @@ Los componentes de UI están en src/components/: Header, CategoryNavigation, Sid
 
 Los estilos se mantienen en src/styles/ y las imágenes y los SVG en src/assets/, siguiendo la estructura del proyecto. No se añaden dependencias ni cambia el comportamiento del formulario.
 
-## Alcance pendiente
+## Backend: Spring AI
 
-La conexión con el endpoint de sugerencias y sus estados de carga/error queda pendiente. Esta modificación no cambia la configuración ni los modos mock/real del backend. El tiempo invertido y la experiencia personal de uso de IA deben ser completados por el autor; AI_JOURNEY.md se conserva.
+Base: commit 3afc793, anterior a las integraciones Vertex AI y REST manual. Se mantiene el frontend y el contrato de ListingRequest: title, tags y priceRange (min y max de tipo BigDecimal).
 
-## Modelo del backend
+Versiones: Spring Boot 3.5.8, Spring AI 1.1.2, Kotlin 1.9.25 y Java 21. Boot se actualiza para usar la versión compatible con este Spring AI; las dependencias se resuelven desde Maven Central. El starter es spring-ai-starter-model-google-genai.
 
-`model/ListingRequest` contiene `title: String`, `tags: List<String>` y `price: BigDecimal`. Se usa decimal exacto para evitar los errores de precisión de `Float`. Jakarta Bean Validation (`@Digits`) rechaza más de dos decimales cuando se valida el DTO; el futuro endpoint deberá aplicar `@Valid`. No se redondea el precio automáticamente.
+Estructura bajo backend/src/main/kotlin/com/wallapoptest/listing_assistant/:
 
-Las pruebas del modelo cubren precios enteros, uno y dos decimales y el rechazo de tres decimales. Ejecutar desde `backend/`: `.\gradlew.bat test` (Windows) o `./gradlew test` (Unix).
+- controller/: endpoint y configuración estricta del JSON de entrada.
+- service/: conversión con BeanOutputConverter de Spring AI y validación de la sugerencia.
+- model/: DTO de entrada SuggestionRequest y resultado ListingRequest con PriceRange.
+- aiassistant/: interfaz, implementación Gemini con ChatClient, mock, propiedades y configuración de clientes.
+- error/: excepciones y respuestas HTTP seguras.
+
+La llamada real utiliza Spring AI. No construimos peticiones HTTP ni extraemos manualmente el JSON de respuesta de la API de Google. La conversión y validación son comunes al modo real y al mock.
+
+### Ejecutar
+
+Desde backend/:
+
+```powershell
+.\gradlew.bat bootRun
+```
+
+En Unix: ./gradlew bootRun. Arranca en http://localhost:8080. Por defecto MOCK_MODE=true; no necesita credenciales ni inicializa clientes de Gemini.
+
+### IntelliJ y dependencias
+
+Abre o vincula backend/build.gradle.kts como proyecto Gradle. Configura Gradle JVM con JDK 21 y usa el wrapper del proyecto; después pulsa Reload All Gradle Projects en la ventana Gradle. Si el IDE sigue mostrando Spring Boot 3.3.4, su modelo no coincide con el build actual (3.5.8).
+
+El starter trae spring-ai-google-genai 1.1.2 y com.google.genai:google-genai 1.28.0, que contienen los imports GoogleGenAiChatModel, GoogleGenAiChatOptions, Client, HttpOptions, HttpRetryOptions y ApiException. No hace falta añadir el antiguo starter de Vertex. Para verificar resolución y compilación desde backend/:
+
+```powershell
+.\gradlew.bat dependencyInsight --dependency com.google.genai:google-genai --configuration compileClasspath
+.\gradlew.bat clean test bootJar
+```
+
+### Endpoint
+
+POST /api/listings/suggestions:
+
+```json
+{"description":"Chaqueta de cuero vintage, usada una vez, talla M"}
+```
+
+Respuesta mock:
+
+```json
+{
+  "title":"Chaqueta de cuero vintage talla M, usada una vez",
+  "tags":["chaqueta","cuero","vintage","talla M"],
+  "priceRange":{"min":40.00,"max":50.00}
+}
+```
+
+El mock devuelve un ejemplo guardado, independientemente del producto descrito. El rango es una estimación en EUR.
+
+Se validan descripciones de 3–2000 caracteres, títulos de 3–120, 3–5 tags distintos de 1–30 caracteres y ambos extremos del rango de 0.01 a 99999999.99 con máximo dos decimales y min <= max. Se rechaza JSON inválido, campos extra, valores nulos, tipos incorrectos y respuestas mayores de 8192 caracteres. La validación no garantiza la exactitud de una valoración de mercado.
+
+### Variables
+
+| Variable | Uso |
+| --- | --- |
+| MOCK_MODE | true por defecto; false activa Gemini. |
+| MOCK_SCENARIO | VALID, MALFORMED o NONSENSICAL; por defecto VALID. |
+| GEMINI_API_KEY | API key de Google AI Studio; obligatoria y no vacía en modo real. |
+| GEMINI_MODEL | Por defecto gemini-3.5-flash-lite. |
+| GEMINI_TIMEOUT_SECONDS | Límite total de llamada, incluyendo conexión y respuesta; 20 segundos por defecto, entre 1 y 60. |
+
+Para probar errores, establece MOCK_SCENARIO=MALFORMED (JSON roto) o NONSENSICAL (contenido incoherente) y reinicia el servidor. Ambos deben devolver 502/INVALID_MODEL_RESPONSE.
+
+Para Gemini real, configura MOCK_MODE=false y GEMINI_API_KEY en las variables de entorno de la configuración de ejecución de IntelliJ. En PowerShell puedes introducir la clave sin guardarla en el historial:
+
+```powershell
+$env:MOCK_MODE = "false"
+$secureKey = Read-Host "GEMINI_API_KEY" -AsSecureString
+$env:GEMINI_API_KEY = [System.Net.NetworkCredential]::new("", $secureKey).Password
+.\gradlew.bat bootRun
+```
+
+No hacen falta proyecto, región ni archivos de credenciales de Vertex. No se cargan archivos .env automáticamente. Nunca guardes la clave en Git ni uses variables VITE_ para ella.
+
+[Google GenAI de Spring AI](https://docs.spring.io/spring-ai/reference/1.1/api/chat/google-genai-chat.html) admite API key de [Google AI Studio](https://aistudio.google.com/apikey). Los modelos con cuota gratuita están sujetos a los [límites y precios del proveedor](https://ai.google.dev/gemini-api/docs/pricing).
+
+AssistantConfiguration crea clientes solo en modo real. Se deshabilitan las autoconfiguraciones de chat/embeddings que no usamos para evitar inicializar Google en mock. No se habilitan herramientas ni reintentos automáticos. BeanOutputConverter tiene su logger desactivado porque puede registrar contenido bruto cuando falla la conversión.
+
+### Errores y pruebas
+
+Errores con formato {"code":"...","message":"..."}: 400 para entrada inválida, 502 para salida inválida del modelo, 503 para fallo del proveedor y 504 para timeout. No se devuelve el error bruto de Google.
+
+Ejecuta .\gradlew.bat test o ./gradlew test desde backend/. Las pruebas cubren el contrato HTTP, conversión y validación, mocks rotos, separación entre descripción e instrucciones, errores del proveedor y arranque sin clave. Gemini se simula con ChatModel: no se hacen llamadas reales ni se necesitan credenciales para los tests.
+
+## Pendiente
+
+Conectar el frontend al endpoint, representar carga/resultado/errores y comprobar Gemini con una clave válida. Esta integración no realiza una llamada real ni modifica AI_JOURNEY.md.
+
+Tiempo invertido: pendiente de completar por el autor.
+Siguiente paso: integrar y probar el flujo completo frontend-backend.
