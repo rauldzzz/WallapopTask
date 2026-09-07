@@ -24,3 +24,9 @@ Los estilos se mantienen en src/styles/ y las imágenes y los SVG en src/assets/
 ## Alcance pendiente
 
 La conexión con el endpoint de sugerencias y sus estados de carga/error queda pendiente. Esta modificación no cambia la configuración ni los modos mock/real del backend. El tiempo invertido y la experiencia personal de uso de IA deben ser completados por el autor; AI_JOURNEY.md se conserva.
+
+## Modelo del backend
+
+`model/ListingRequest` contiene `title: String`, `tags: List<String>` y `price: BigDecimal`. Se usa decimal exacto para evitar los errores de precisión de `Float`. Jakarta Bean Validation (`@Digits`) rechaza más de dos decimales cuando se valida el DTO; el futuro endpoint deberá aplicar `@Valid`. No se redondea el precio automáticamente.
+
+Las pruebas del modelo cubren precios enteros, uno y dos decimales y el rechazo de tres decimales. Ejecutar desde `backend/`: `.\gradlew.bat test` (Windows) o `./gradlew test` (Unix).
