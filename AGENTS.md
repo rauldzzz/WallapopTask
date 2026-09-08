@@ -50,7 +50,7 @@ When adding files, organize them by feature or responsibility and follow the con
 - Prefer the simplest implementation that satisfies the current requirements. Avoid premature generalization and unnecessary libraries.
 - Keep files cohesive, names explicit, and public APIs small. Maintain consistent ordering of imports, declarations, configuration blocks, and folders.
 - Preserve type safety. Do not silence errors with unsafe casts, `any`, broad exception swallowing, or disabled checks.
-- Keep documentation, comments, logs, and technical error text in English. Keep UI messages and listing content in Spanish, including frontend errors intended for display. Write comments in English. Add comments only where they explain intent, a non-obvious constraint, or a trade-off; do not narrate self-explanatory code.
+- Keep documentation, comments, logs, and technical error text in English. Keep UI messages, accessibility labels, request examples, AI prompt instructions, and listing content in Spanish, including frontend errors intended for display. Keep JSON field names and program identifiers in English. Write comments in English. Add comments only where they explain intent, a non-obvious constraint, or a trade-off; do not narrate self-explanatory code.
 - Validate data at system boundaries and return useful, stable errors without exposing secrets or internal implementation details.
 - Do not log credentials, authorization headers, full environment dumps, or sensitive provider responses.
 - Update tests and documentation when behavior, configuration, commands, or environment variables change.

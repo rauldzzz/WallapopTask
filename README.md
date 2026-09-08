@@ -138,7 +138,7 @@ Mock mode works if credentials, model access, or quota prevent a real request. N
 
 The form accepts 3-50 characters after trimming outer spaces. **Continuar** sends `POST /api/listings/suggestions`. The hook manages idle, loading, success, and error states, prevents duplicate submissions, and cancels the browser request when the text changes or the component unmounts. Editing clears the result; an error enables **Reintentar**. A client timeout aborts the request after 65 seconds. Browser cancellation does not guarantee that a provider call already running on the backend stops.
 
-`frontend/src/api/listings.ts` validates the response before it is rendered. `ListingSuggestion` shows the title, tags, and EUR range. User-facing messages remain Spanish, including safe messages for failed requests.
+`frontend/src/api/listings.ts` validates the response before it is rendered. `ListingSuggestion` shows the title, tags, and EUR range. User-facing messages remain Spanish, including safe messages for failed requests. The AI prompt instructions and listing content are also Spanish; technical errors, code identifiers, and documentation remain English.
 
 Vite proxies `/api` to `http://localhost:8080` in development and preview. The browser uses its own origin, so this local setup does not require cross-origin backend access. Restart Vite after changing its configuration. A production host must configure an equivalent `/api` reverse proxy; the Vite proxy is not included in the static build.
 
@@ -149,7 +149,7 @@ Keep the backend running and open another terminal. The endpoint accepts **POST*
 Windows CMD:
 
 ```bat
-curl.exe -i -X POST "http://localhost:8080/api/listings/suggestions" -H "Content-Type: application/json" -d "{\"description\":\"Vintage leather jacket, size M\"}"
+curl.exe -i -X POST "http://localhost:8080/api/listings/suggestions" -H "Content-Type: application/json" -d "{\"description\":\"Chaqueta de cuero vintage, talla M\"}"
 ```
 
 Linux Bash:
@@ -157,7 +157,7 @@ Linux Bash:
 ```bash
 curl -i -X POST 'http://localhost:8080/api/listings/suggestions' \
   -H 'Content-Type: application/json' \
-  -d '{"description":"Vintage leather jacket, size M"}'
+  -d '{"description":"Chaqueta de cuero vintage, talla M"}'
 ```
 
 The response appears in the client terminal. `VALID` always returns this saved Spanish listing, independently of the input:

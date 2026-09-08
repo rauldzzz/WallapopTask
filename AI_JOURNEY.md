@@ -1,30 +1,25 @@
 # AI Journey
 
-> Working draft: this file records only events that have actually happened. The remaining personal reflections must be completed by the author before submission.
+## How I used AI
 
-## Assistants used
+I used OpenAI Codex to develop this project, following the instructions in `AGENTS.md`.
 
-I used OpenAI Codex to inspect the take-home brief and the existing React and Kotlin/Spring project structure. I also used it to write repository-specific development guidance in `AGENTS.md`, consolidate the frontend and backend `.gitignore` rules at the repository root, and prepare this working draft.
+## Questions and guidance that helped
 
-## Prompts that helped
+I asked how to separate logic from React components, and Codex explained how custom hooks can encapsulate that logic. It also found the Spring AI dependency that supports Gemini API-key authentication for my suggestion requests.
 
-Two prompts were useful during the repository setup:
+Codex initially suggested a Gemini model that was no longer available to my account. The requests returned HTTP 404, and I kept asking about the error because I did not understand its cause. After adjusting the configuration to use another text model, the request worked. I then looked for a free model with enough daily requests to let me test the application.
 
-1. I asked Codex to create an `AGENTS.md` tailored to the existing React frontend and Spring/Kotlin backend, with explicit rules about code quality, English comments, Gradle dependencies, IntelliJ environment variables, and API-key security. This turned broad expectations into a review checklist for later implementation.
-2. I asked Codex to unify the existing `.gitignore` files at the repository root and create `AI_JOURNEY.md`. This helped remove duplicated ignore rules while preserving frontend, Gradle, Kotlin, and IDE exclusions.
+## What went wrong and how I corrected it
 
-## What did not work at first
+I initially tried to integrate Spring AI using the wrong library. The agent implemented the backend using Google Cloud/Vertex AI authentication rather than the simple Gemini API-key setup I wanted. I returned to the previous repository state and asked it to implement the required behavior with Spring AI. It then found the correct dependency for Gemini API-key authentication.
 
-While reading the PDF brief, the first text-extraction attempt failed because the Windows console encoding could not print one of the document's bullet characters. Codex reran the extraction with UTF-8 output and then reviewed all three pages successfully.
-
-## A time the AI got something wrong
-
-TODO: Add a real example from the implementation. Describe the incorrect suggestion or code, how you detected it through review or testing, and what you changed. Do not replace this with a fabricated example.
+When I wanted to translate the frontend error messages, the agent translated the entire UI and project as well. After realizing that my intended change only involved one file, I returned to the state of my last push and made the change manually.
 
 ## What I do not fully understand yet
 
-TODO: Add an honest technical area that you would like to understand better. A specific detail about Spring AI configuration, provider response handling, React state, or the test setup would be more useful than a generic statement.
+I would like to understand better how the tests in the backend's test directory are implemented, particularly how each test function is defined and how its annotations and assertions determine what is executed and checked.
 
-## What I would improve with four more hours
+## What I would improve with more time
 
-TODO: Complete this after the working application is reviewed. Possible areas to assess include stronger malformed-model-response handling, more focused integration tests, accessibility checks, observability, or UI polish, but keep only the improvements you genuinely consider important.
+I would refine the request and prompt to obtain better results from the same AI model. To give it more useful context, I would implement the features described in the README: a graph connecting Wallapop tags, categories, and filters, and price estimates based on comparable Wallapop listings, excluding disproportionate outliers before selecting a relevant minimum and maximum.
