@@ -1,133 +1,318 @@
 # Wallapop Listing Assistant
 
-Frontend de una sola pantalla inspirado en la página incluida en wallapop_web_sellMoment.zip.
+A take-home project that turns a seller's rough product description into an improved listing title, 3-5 search tags, and an estimated price range in EUR.
 
-## Frontend
+The UI recreates the exact stage of Wallapop's selling flow where a user starts listing a product. It is an educational recreation, not an official Wallapop service. The header, sidebar, and categories are static; the product form is connected to the backend through REST. It generates suggestions without publishing a listing.
 
-Desde frontend/, ejecuta npm ci y npm run dev. Abre la dirección que muestra Vite.
-Para verificar el código: npm run lint y npm run build. npm run preview sirve la compilación.
+## Stack
 
-La cabecera, el menú lateral y las categorías son estáticos. El resumen admite hasta 50 caracteres, como la referencia. Continuar envía la descripción al backend y muestra título, etiquetas y rango de precios. Requiere al menos 3 caracteres después de recortar espacios. Incluye carga, errores y reintento; editar cancela la petición anterior y limpia el resultado. No publica anuncios. Las credenciales permanecen en el backend.
+| Area | Technology |
+| --- | --- |
+| Backend | Spring Boot 3.5.8 with Kotlin 1.9.25 and Java 21 |
+| AI integration | Spring AI BOM 1.1.2 and `spring-ai-starter-model-google-genai` |
+| Provider | Gemini Developer API with an API key; default model `gemini-3.5-flash-lite` (Gemini 3.5 Flash-Lite) |
+| Spring AI components | `ChatClient`, `GoogleGenAiChatModel`, `GoogleGenAiChatOptions`, and `BeanOutputConverter` |
+| Other backend libraries | Spring Web, Jakarta Bean Validation, Jackson Kotlin, Kotlin reflection, and the Google GenAI Java SDK supplied by the starter |
+| Frontend | React 19, TypeScript 6, Vite 8, and Oxlint |
+| Tests | Spring Boot Test, JUnit 5, Kotlin Test, MockMvc/Mockito; Node's built-in test runner for the frontend API client |
+| Build tools | Checked-in Gradle wrapper and npm with `package-lock.json` |
 
-La paleta de src/styles/index.css usa los valores exactos del CSS aportado. Segoe UI, con alternativa Arial, sustituye a Wallie. El logo y el avatar proceden de la referencia. Los SVG similares son Font Awesome Free 6.7.2, del catálogo presentado en [W3Schools](https://www.w3schools.com/icons/fontawesome_icons_intro.asp), descargados del [repositorio oficial](https://github.com/FortAwesome/Font-Awesome/tree/6.x/svgs/solid) a src/assets/icons/. Su licencia y atribución están en esa carpeta.
+[Spring AI's Google GenAI integration](https://docs.spring.io/spring-ai/reference/1.1/api/chat/google-genai-chat.html) supports API-key authentication. No Vertex AI project ID, region, service-account file, or global Gradle installation is required.
 
-Verificación manual: estado vacío, texto compuesto solo por espacios, límite de 50 caracteres, activación del botón, confirmación y edición posterior. Se revisa también la pantalla en escritorio y móvil. Las pruebas automatizadas del cliente REST se describen en la sección Flujo REST local.
+## Prerequisites
 
-## Organización del frontend
+Download and install:
 
-La aplicación está integrada en frontend/ del repositorio. src/App.tsx compone la pantalla y src/main.tsx la monta.
+- **JDK 21**, for example [Eclipse Temurin](https://adoptium.net/temurin/releases/?version=21). Point `JAVA_HOME` to the JDK directory and include its `bin` directory in `PATH`.
+- **Node.js 24 LTS with npm**, from [Node.js](https://nodejs.org/en/download). This also supports the TypeScript stripping used by the frontend tests.
+- **Git**, from [Git downloads](https://git-scm.com/downloads), if cloning the repository rather than extracting an archive.
+- **curl**, only for optional direct API tests. It is included in recent Windows versions and available through Linux package managers.
 
-Los componentes de UI están en src/components/: Header, CategoryNavigation, Sidebar, UserProfile, ListingCategories, ProductSummaryForm, ListingSuggestion, SummaryField, Avatar e Icon. El hook src/hooks/useProductSummary.ts gestiona el estado, la validación, el envío y los estados de la sugerencia; ProductSummaryForm compone la interfaz y conecta sus eventos al hook; SummaryField recibe el valor y el manejador de cambios mediante props. Icon solo admite nombres de SVG existentes mediante un tipo derivado de sus imports.
+Check the tools in a new terminal:
 
-Los estilos se mantienen en src/styles/ y las imágenes y los SVG en src/assets/, siguiendo la estructura del proyecto. Los contratos TypeScript están en src/model/listing.ts: SuggestionRequest contiene description; ListingRequest refleja la respuesta del backend con title, tags y priceRange (min y max numéricos). useProductSummary mantiene un SuggestionRequest actualizado desde SummaryField y recorta espacios al continuar. src/api/listings.ts centraliza el POST y valida el JSON recibido en ejecución antes de mostrarlo. ListingSuggestion presenta el resultado. No se añaden dependencias.
-
-## Backend: Spring AI
-
-Base: commit 3afc793, anterior a las integraciones Vertex AI y REST manual. Se mantiene el frontend y el contrato de ListingRequest: title, tags y priceRange (min y max de tipo BigDecimal).
-
-Versiones: Spring Boot 3.5.8, Spring AI 1.1.2, Kotlin 1.9.25 y Java 21. Boot se actualiza para usar la versión compatible con este Spring AI; las dependencias se resuelven desde Maven Central. El starter es spring-ai-starter-model-google-genai.
-
-Estructura bajo backend/src/main/kotlin/com/wallapoptest/listing_assistant/:
-
-- controller/: endpoint y configuración estricta del JSON de entrada.
-- service/: conversión con BeanOutputConverter de Spring AI y validación de la sugerencia.
-- model/: DTO de entrada SuggestionRequest y resultado ListingRequest con PriceRange.
-- aiassistant/: interfaz, implementación Gemini con ChatClient, mock, propiedades y configuración de clientes.
-- error/: excepciones y respuestas HTTP seguras.
-
-La llamada real utiliza Spring AI. No construimos peticiones HTTP ni extraemos manualmente el JSON de respuesta de la API de Google. La conversión y validación son comunes al modo real y al mock.
-
-### Ejecutar
-
-Desde backend/:
-
-```powershell
-.\gradlew.bat bootRun
+```text
+java -version
+node --version
+npm --version
+git --version
+curl --version
 ```
 
-En Unix: ./gradlew bootRun. Arranca en http://localhost:8080. Por defecto MOCK_MODE=true; no necesita credenciales ni inicializa clientes de Gemini.
+Java should report version 21. Clone or extract the repository and open a terminal in its root, the directory containing `frontend` and `backend`. The first npm/Gradle runs need internet access to download dependencies. No API key is needed for mock mode.
 
-### IntelliJ y dependencias
+## Run on Windows CMD
 
-Abre o vincula backend/build.gradle.kts como proyecto Gradle. Configura Gradle JVM con JDK 21 y usa el wrapper del proyecto; después pulsa Reload All Gradle Projects en la ventana Gradle. Si el IDE sigue mostrando Spring Boot 3.3.4, su modelo no coincide con el build actual (3.5.8).
+These commands use **Command Prompt (`cmd.exe`)**, not PowerShell.
 
-El starter trae spring-ai-google-genai 1.1.2 y com.google.genai:google-genai 1.28.0, que contienen los imports GoogleGenAiChatModel, GoogleGenAiChatOptions, Client, HttpOptions, HttpRetryOptions y ApiException. No hace falta añadir el antiguo starter de Vertex. Para verificar resolución y compilación desde backend/:
+### Backend in mock mode
 
-```powershell
-.\gradlew.bat dependencyInsight --dependency com.google.genai:google-genai --configuration compileClasspath
-.\gradlew.bat clean test bootJar
+From the repository root, in the first terminal:
+
+```bat
+cd backend
+set "MOCK_MODE=true"
+set "MOCK_SCENARIO=VALID"
+gradlew.bat bootRun
 ```
 
-### Endpoint
+Wait for `Started ListingAssistantApplicationKt`. The backend listens on `http://localhost:8080`. Leave this terminal open; Gradle continuing to execute `bootRun` is normal.
 
-POST /api/listings/suggestions:
+`VALID` tests a successful response. Use `MALFORMED` or `NONSENSICAL` to test resilience; see [Mock scenarios](#mock-scenarios).
 
-```json
-{"description":"Chaqueta de cuero vintage, usada una vez, talla M"}
+### Frontend
+
+Open a second CMD terminal at the repository root:
+
+```bat
+cd frontend
+npm ci
+npm run dev
 ```
 
-Respuesta mock:
+Open the URL printed by Vite, normally `http://localhost:5173`. Enter a description such as `Chaqueta de cuero vintage talla M` and press **Continuar**. You should see the saved title, tags, and EUR 40-50 range. Both servers must be running.
+
+### Backend with Gemini
+
+Create a key using the guide below. Stop the backend with `Ctrl+C`. In its CMD terminal, still inside `backend`:
+
+```bat
+set "MOCK_MODE=false"
+set "GEMINI_MODEL=gemini-3.5-flash-lite"
+set "GEMINI_API_KEY="
+set /p "GEMINI_API_KEY=Paste your Gemini API key and press Enter: "
+gradlew.bat bootRun
+```
+
+Paste the actual key at the prompt. CMD displays the input; do not save the key in source files or screenshots. Variables apply to this terminal and its child processes. The running frontend now uses the real provider through the backend. Clear the key after stopping the backend with `set "GEMINI_API_KEY="`, or close the terminal.
+
+## Run on Linux (Bash)
+
+### Backend in mock mode
+
+From the repository root, in the first terminal:
+
+```bash
+cd backend
+chmod +x gradlew
+MOCK_MODE=true MOCK_SCENARIO=VALID ./gradlew bootRun
+```
+
+Leave it running on `http://localhost:8080`. See [Mock scenarios](#mock-scenarios) for the successful and broken response cases.
+
+### Frontend
+
+Open a second terminal at the repository root:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Open the URL printed by Vite. Enter a description and press **Continuar** to see the mock suggestion. Stop either server with `Ctrl+C` in its terminal.
+
+### Backend with Gemini
+
+Stop the mock backend. In its terminal, inside `backend`:
+
+```bash
+read -r -s -p "Gemini API key: " GEMINI_API_KEY
+printf '\n'
+export GEMINI_API_KEY
+MOCK_MODE=false GEMINI_MODEL=gemini-3.5-flash-lite ./gradlew bootRun
+```
+
+Input is hidden. Repeat the form submission to generate a real suggestion. After stopping the backend, run `unset GEMINI_API_KEY` to remove the key from the shell.
+
+## Get a free-tier Gemini API key
+
+1. Sign in to [Google AI Studio's API keys page](https://aistudio.google.com/apikey) and accept the applicable terms.
+2. Use the default project/key if one was created for your account, or select **Create API key** and select/create a project. Existing projects may need to be imported into AI Studio. See [Google's key setup guide](https://ai.google.dev/gemini-api/docs/api-key).
+3. Copy the key and pass it to the backend as `GEMINI_API_KEY` using the commands above.
+4. For free-tier evaluation, check that the project's plan is **Free** rather than enabling paid billing. Creating a key does not guarantee access to every model. See [Google's billing guide](https://ai.google.dev/gemini-api/docs/billing).
+5. Check the model's active limits in AI Studio. Gemini 3.5 Flash-Lite has free-tier pricing subject to availability and quotas; this is not unlimited usage or a guaranteed lifetime token allowance. Consult the current [pricing table](https://ai.google.dev/gemini-api/docs/pricing#gemini-3.5-flash-lite) and [rate limits](https://ai.google.dev/gemini-api/docs/rate-limits).
+
+Mock mode works if credentials, model access, or quota prevent a real request. Never put the key in frontend code, `VITE_` variables, committed `.env` files, or logs.
+
+## How the frontend and backend communicate
+
+The form accepts 3-50 characters after trimming outer spaces. **Continuar** sends `POST /api/listings/suggestions`. The hook manages idle, loading, success, and error states, prevents duplicate submissions, and cancels the browser request when the text changes or the component unmounts. Editing clears the result; an error enables **Reintentar**. A client timeout aborts the request after 65 seconds. Browser cancellation does not guarantee that a provider call already running on the backend stops.
+
+`frontend/src/api/listings.ts` validates the response before it is rendered. `ListingSuggestion` shows the title, tags, and EUR range. User-facing messages remain Spanish, including safe messages for failed requests.
+
+Vite proxies `/api` to `http://localhost:8080` in development and preview. The browser uses its own origin, so this local setup does not require cross-origin backend access. Restart Vite after changing its configuration. A production host must configure an equivalent `/api` reverse proxy; the Vite proxy is not included in the static build.
+
+## REST contract and direct tests
+
+Keep the backend running and open another terminal. The endpoint accepts **POST**; opening its address in a browser sends GET and is not a valid test.
+
+Windows CMD:
+
+```bat
+curl.exe -i -X POST "http://localhost:8080/api/listings/suggestions" -H "Content-Type: application/json" -d "{\"description\":\"Vintage leather jacket, size M\"}"
+```
+
+Linux Bash:
+
+```bash
+curl -i -X POST 'http://localhost:8080/api/listings/suggestions' \
+  -H 'Content-Type: application/json' \
+  -d '{"description":"Vintage leather jacket, size M"}'
+```
+
+The response appears in the client terminal. `VALID` always returns this saved Spanish listing, independently of the input:
 
 ```json
 {
-  "title":"Chaqueta de cuero vintage talla M, usada una vez",
-  "tags":["chaqueta","cuero","vintage","talla M"],
-  "priceRange":{"min":40.00,"max":50.00}
+  "title": "Chaqueta de cuero vintage talla M, usada una vez",
+  "tags": ["chaqueta", "cuero", "vintage", "talla M"],
+  "priceRange": { "min": 40.00, "max": 50.00 }
 }
 ```
 
-El mock devuelve un ejemplo guardado, independientemente del producto descrito. El rango es una estimación en EUR.
+The input DTO is `SuggestionRequest`; the output DTO retains the name `ListingRequest`. Kotlin prices use `BigDecimal`, while TypeScript receives JSON numbers. The backend accepts descriptions of 3-2000 characters; the frontend keeps the reference screen's narrower 50-character limit. Titles must be 3-120 characters, with 3-5 distinct tags of 1-30 characters. Prices must be positive, have at most 8 integer digits and 2 decimal places, and satisfy `min <= max`. A valid structure does not guarantee factual or market-price accuracy.
 
-Se validan descripciones de 3–2000 caracteres, títulos de 3–120, 3–5 tags distintos de 1–30 caracteres y ambos extremos del rango de 0.01 a 99999999.99 con máximo dos decimales y min <= max. Se rechaza JSON inválido, campos extra, valores nulos, tipos incorrectos y respuestas mayores de 8192 caracteres. La validación no garantiza la exactitud de una valoración de mercado.
+## Mock scenarios
 
-### Variables
+Mock mode uses saved files in `backend/src/main/resources/mock/` and never initializes or calls Gemini. Each scenario passes through the same service conversion and validation as real AI output, making failures repeatable without credentials or API quota.
 
-| Variable | Uso |
-| --- | --- |
-| MOCK_MODE | true por defecto; false activa Gemini. |
-| MOCK_SCENARIO | VALID, MALFORMED o NONSENSICAL; por defecto VALID. |
-| GEMINI_API_KEY | API key de Google AI Studio; obligatoria y no vacía en modo real. |
-| GEMINI_MODEL | Por defecto gemini-3.5-flash-lite. |
-| GEMINI_TIMEOUT_SECONDS | Límite total de llamada, incluyendo conexión y respuesta; 20 segundos por defecto, entre 1 y 60. |
+| Scenario | Saved data | Expected result for valid input | What it checks and why |
+| --- | --- | --- | --- |
+| `VALID` | Complete listing, four distinct tags, EUR 40-50 range | HTTP 200; the UI displays a suggestion | Checks the successful conversion, validation, REST contract, and rendering path using predictable data. |
+| `MALFORMED` | Truncated JSON: `{"title":` | HTTP 502, `INVALID_MODEL_RESPONSE`; the UI offers retry | Checks that incomplete or broken model output is rejected safely rather than presented as a successful listing. |
+| `NONSENSICAL` | Parseable JSON with title `???`, repeated empty tags, and negative prices | HTTP 502, `INVALID_MODEL_RESPONSE`; the UI offers retry | Checks business constraints after parsing. Valid JSON alone does not mean a useful listing. This checks explicit rules, not general semantic or market-price accuracy. |
 
-Para probar errores, establece MOCK_SCENARIO=MALFORMED (JSON roto) o NONSENSICAL (contenido incoherente) y reinicia el servidor. Ambos deben devolver 502/INVALID_MODEL_RESPONSE.
+Stop the backend with `Ctrl+C`, choose a scenario, and restart. Example for Windows CMD, from `backend`:
 
-Para Gemini real, configura MOCK_MODE=false y GEMINI_API_KEY en las variables de entorno de la configuración de ejecución de IntelliJ. En PowerShell puedes introducir la clave sin guardarla en el historial:
-
-```powershell
-$env:MOCK_MODE = "false"
-$secureKey = Read-Host "GEMINI_API_KEY" -AsSecureString
-$env:GEMINI_API_KEY = [System.Net.NetworkCredential]::new("", $secureKey).Password
-.\gradlew.bat bootRun
+```bat
+set "MOCK_MODE=true"
+set "MOCK_SCENARIO=MALFORMED"
+gradlew.bat bootRun
 ```
 
-No hacen falta proyecto, región ni archivos de credenciales de Vertex. No se cargan archivos .env automáticamente. Nunca guardes la clave en Git ni uses variables VITE_ para ella.
+Linux Bash, from `backend`:
 
-[Google GenAI de Spring AI](https://docs.spring.io/spring-ai/reference/1.1/api/chat/google-genai-chat.html) admite API key de [Google AI Studio](https://aistudio.google.com/apikey). Los modelos con cuota gratuita están sujetos a los [límites y precios del proveedor](https://ai.google.dev/gemini-api/docs/pricing).
+```bash
+MOCK_MODE=true MOCK_SCENARIO=MALFORMED ./gradlew bootRun
+```
 
-AssistantConfiguration crea clientes solo en modo real. Se deshabilitan las autoconfiguraciones de chat/embeddings que no usamos para evitar inicializar Google en mock. No se habilitan herramientas ni reintentos automáticos. BeanOutputConverter tiene su logger desactivado porque puede registrar contenido bruto cuando falla la conversión.
+Replace `MALFORMED` with `NONSENSICAL` or `VALID` to exercise the other cases. Test with the UI or the POST examples above. If a previous successful result disables Continue, edit the description first; after an error, press **Reintentar**. Scenarios are selected at startup, not by changing the description. Restore `VALID` and restart when finished.
 
-### Errores y pruebas
+As a separate input-validation test, send `{"description":""}` or broken request JSON using curl: the backend should return HTTP 400 before calling the mock. Provider outages/timeouts are simulated in automated backend tests, not additional `MOCK_SCENARIO` values.
 
-Errores con formato {"code":"...","message":"..."}: 400 para entrada inválida, 502 para salida inválida del modelo, 503 para fallo del proveedor y 504 para timeout. No se devuelve el error bruto de Google.
+Errors have the shape `{"code":"...","message":"..."}`:
 
-Ejecuta .\gradlew.bat test o ./gradlew test desde backend/. Las pruebas cubren el contrato HTTP, conversión y validación, mocks rotos, separación entre descripción e instrucciones, errores del proveedor y arranque sin clave. Gemini se simula con ChatModel: no se hacen llamadas reales ni se necesitan credenciales para los tests.
+| HTTP status | Meaning |
+| --- | --- |
+| 400 | Invalid description or request JSON |
+| 502 | Invalid model output |
+| 503 | Provider failure or unavailability |
+| 504 | Provider timeout |
 
-## Pendiente
+The frontend maps HTTP failures to its own safe Spanish UI messages and does not display raw provider errors.
 
-Comprobar el flujo con credenciales propias y revisar la calidad de las sugerencias reales. Esta integración no realiza una llamada real ni modifica AI_JOURNEY.md.
+## Configuration and troubleshooting
 
-Tiempo invertido: pendiente de completar por el autor.
-Siguiente paso: revisar la calidad de las sugerencias y preparar el despliegue.
+| Variable | Default / purpose |
+| --- | --- |
+| `MOCK_MODE` | `true`; disables external provider initialization and calls |
+| `MOCK_SCENARIO` | `VALID`; also accepts `MALFORMED` and `NONSENSICAL` |
+| `GEMINI_API_KEY` | Empty in mock; required and nonblank in real mode |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite`; supports an explicit environment override |
+| `GEMINI_TIMEOUT_SECONDS` | 20 seconds; allowed range 1-60 |
 
-## Flujo REST local
+`application.yaml` resolves these variables into `app.ai`. `AssistantProperties` binds and validates them; `AssistantConfiguration` creates the Google client and Spring AI objects only in real mode. Unused automatic chat/embedding configuration is disabled to keep mock startup credential-free. The converter logger is disabled because conversion errors may log raw content. SDK and Spring retry policies both use one attempt.
 
-1. Desde backend/, ejecuta `.\gradlew.bat bootRun` (mock sin clave por defecto).
-2. Desde frontend/, ejecuta `npm ci` y `npm run dev`.
-3. Abre la dirección de Vite, escribe una descripción y pulsa Continuar.
+- `.env` files are not loaded automatically. Restart the backend after changing environment variables.
+- IntelliJ: link `backend/build.gradle.kts`, select the Gradle wrapper and **Gradle JVM 21**, then reload Gradle. For the Run button, put variables in **Run > Edit Configurations > Environment variables**. Terminal variables do not automatically apply to that configuration.
+- A blank key prevents real-mode startup; a nonblank value does not prove Google will accept it.
+- Inspect the safe server log for provider status/type/timeout. Backend HTTP 503 can wrap a Google error such as 404 for an unavailable model. Model listing alone does not guarantee generation access. Do not log keys or raw provider content.
+- If the UI cannot connect, check that the backend is listening on port 8080 and that Vite is running. Stop conflicting processes before starting another server on the same port.
 
-Vite reenvía `/api` a `http://localhost:8080`, tanto en desarrollo como en `npm run preview`. Reinicia Vite si ya estaba abierto antes del cambio de configuración. El navegador utiliza el mismo origen y no necesita CORS. Un despliegue debe configurar su propio proxy `/api` al backend: el proxy de Vite no forma parte de los archivos estáticos compilados.
+## Repository organization
 
-Para probar errores de modelo, reinicia el backend con `MOCK_SCENARIO=MALFORMED` o `NONSENSICAL`; la pantalla mostrará el error y permitirá reintentar. Para modo real utiliza `MOCK_MODE=false` y `GEMINI_API_KEY` exclusivamente en el proceso backend.
+```text
+.
+|-- frontend/
+|   |-- src/
+|   |   |-- App.tsx                 # Screen composition
+|   |   |-- main.tsx                # React entry point
+|   |   |-- components/             # UI, form, and ListingSuggestion
+|   |   |-- hooks/                  # useProductSummary: state and actions
+|   |   |-- api/                    # REST client and runtime response validation
+|   |   |-- model/                  # SuggestionRequest, ListingRequest, PriceRange types
+|   |   |-- assets/                 # Imported images and SVG icons
+|   |   `-- styles/                 # Shared palette and screen styles
+|   |-- tests/                      # Node tests for the REST client
+|   |-- public/                     # Public logo, favicon, and avatar
+|   |-- package.json
+|   `-- vite.config.ts              # Build setup and local /api proxy
+|-- backend/
+|   |-- src/main/kotlin/com/wallapoptest/listing_assistant/
+|   |   |-- ListingAssistantApplication.kt
+|   |   |-- controller/             # REST endpoint and request JSON configuration
+|   |   |-- service/                # AI output conversion and validation
+|   |   |-- model/                  # Input/output DTOs and price range
+|   |   |-- aiassistant/            # Gemini/mock, prompt, clients, and properties
+|   |   `-- error/                  # Exceptions and safe HTTP responses
+|   |-- src/main/resources/
+|   |   |-- application.yaml
+|   |   `-- mock/                   # Valid, malformed, and nonsensical fixtures
+|   |-- src/test/                   # Backend tests
+|   |-- gradle/wrapper/             # Checked-in Gradle wrapper configuration
+|   `-- build.gradle.kts
+|-- AGENTS.md                       # Development conventions
+|-- AI_JOURNEY.md                   # Author's AI-assistance record
+`-- README.md
+```
 
-`npm test` usa el runner integrado de Node (Node 22.18+ o 24) sin dependencias nuevas. Cubre contrato POST, validación de datos, respuesta vacía/JSON roto y errores HTTP/red porque son las fronteras de la integración. `npm run lint` y `npm run build` verifican el código y la compilación. Revisar en navegador carga, edición durante una petición, reintento y presentación de resultados.
+Request flow: `ProductSummaryForm` -> `useProductSummary` -> REST client -> Vite proxy -> controller -> service -> Gemini/mock -> service validation -> frontend validation -> `ListingSuggestion`.
+
+`SummaryField` receives its value and callback through props. Components render the interface; the hook owns state and actions. Google-specific integration stays in `aiassistant`, and controllers delegate to the service.
+
+## Checks and test rationale
+
+From `frontend`, on Windows or Linux:
+
+```text
+npm test
+npm run lint
+npm run build
+```
+
+The five Node test cases cover the POST contract, malformed domain data, empty/invalid JSON, HTTP failures, and network errors. They mock fetch and consume no API quota. Node 24 is recommended; the test runner uses native TypeScript stripping, also available in Node 22.18+. Oxlint checks code and the build runs TypeScript and Vite. These tests do not exercise React interactions in a browser.
+
+From `backend`, Windows CMD:
+
+```bat
+gradlew.bat test
+```
+
+Linux Bash:
+
+```bash
+./gradlew test
+```
+
+Backend tests cover input/output validation, range constraints, mock scenarios, safe provider failures/timeouts, and credential-free mock startup. These boundaries matter because untrusted input and AI output must not become successful invalid responses. Gemini is simulated; tests do not require a key.
+
+Manual browser checks: empty/whitespace input, minimum length, 50-character limit, loading, duplicate-submit prevention, edits during an in-flight request, successful title/tags/price rendering, broken mocks, retry, keyboard access, and mobile/desktop layout.
+
+`npm run build` produces `frontend/dist`; `npm run preview` serves it locally with the configured proxy. Production hosting needs its own reverse proxy. Package the backend using `gradlew.bat bootJar` or `./gradlew bootJar`, then run `java -jar build/libs/listing-assistant-0.0.1-SNAPSHOT.jar` from `backend` with the same environment variables.
+
+## UI reference and attribution
+
+Shared CSS preserves the reference palette. Segoe UI with Arial fallback approximates the original font. The logo and avatar come from the supplied reference. Similar SVG icons are Font Awesome Free 6.7.2, discovered through [W3Schools](https://www.w3schools.com/icons/fontawesome_icons_intro.asp) and downloaded from the [official icon repository](https://github.com/FortAwesome/Font-Awesome/tree/6.x/svgs/solid). See `frontend/src/assets/icons/README.md` and `LICENSE.txt` for attribution and licensing.
+
+## Time spent
+
+This project took approximately 8-9 hours of work.
+
+## Future improvements
+
+I designed this project as a take-home test, with an emphasis on the prompt and on giving the AI model the context it needs to produce the most accurate suggestions possible. I would add:
+
+- **A graph of Wallapop tags, categories, and filters.** Cover the application's tags and their relationships to categories and filters. Guide the model toward tags that match Wallapop's classification system, with the aim of making listings easier to discover through relevant searches and filters.
+- **Price estimates based on comparable Wallapop listings.** When similar products exist, match them using product tags, identify the most common asking prices or price bands, and exclude disproportionately high or low outliers. Derive the suggested minimum and maximum from the remaining comparable listings, accounting for differences reflected in their tags. These would be asking-price estimates, rather than confirmed sale prices.
+
+These are proposed improvements: the current implementation does not retrieve Wallapop's tag taxonomy or comparable listing prices.

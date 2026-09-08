@@ -12,7 +12,10 @@ Before changing code, inspect the relevant files and preserve the established pr
 
 - `frontend/`: React 19, TypeScript, and Vite application.
 - `frontend/src/components/`: UI components; `App.tsx` composes the screen.
-- `frontend/src/hooks/`: feature state and actions. `useProductSummary` owns description editing, validation, and confirmation.
+- `frontend/src/hooks/`: feature state and actions. `useProductSummary` owns description editing, validation, REST submission, loading, results, errors, and cancellation.
+- `frontend/src/api/listings.ts`: REST request handling and runtime response validation.
+- `frontend/tests/listings.test.mjs`: API client tests using Node's built-in runner.
+- `frontend/vite.config.ts`: development and preview proxy from `/api` to `http://localhost:8080`.
 - `frontend/src/model/listing.ts`: TypeScript contracts matching the backend DTOs. Keep the existing singular `model` folder.
 - `frontend/src/assets/`: imported image assets.
 - `frontend/src/styles/`: shared styles. Keep component-specific styles close to the component only if the project adopts that convention consistently.
@@ -34,7 +37,7 @@ When adding files, organize them by feature or responsibility and follow the con
 ## Current implementation and API contract
 
 - The frontend sends descriptions through src/api/listings.ts to POST /api/listings/suggestions, validates the response at runtime, and displays ListingSuggestion. useProductSummary owns loading, success, error, cancellation, and retry behavior. Vite proxies /api to localhost:8080 for dev and preview; production hosting needs an equivalent reverse proxy.
-- `SummaryField` is controlled through props. `useProductSummary` maintains a `SuggestionRequest`, trims the description on confirmation, requires at least 3 trimmed characters, and preserves the reference UI's 50-character limit. The backend accepts descriptions of 3-2000 characters; the narrower frontend limit is intentional for the current UI.
+- `SummaryField` is controlled through props. `useProductSummary` maintains a `SuggestionRequest`, trims the description before submission, requires at least 3 trimmed characters, and preserves the reference UI's 50-character limit. The backend accepts descriptions of 3-2000 characters; the narrower frontend limit is intentional for the current UI.
 - The endpoint is `POST /api/listings/suggestions`, with JSON body `{"description":"..."}`.
 - The response is named `ListingRequest` in the existing code, despite being an output DTO: `{"title":"...","tags":["..."],"priceRange":{"min":40.00,"max":50.00}}`. Preserve the contract unless a change is requested.
 - Titles are 3-120 characters; tags are 3-5 distinct values of 1-30 characters. Both range bounds must be positive, at most 8 integer digits and 2 decimal places, with `min <= max`. Kotlin uses `BigDecimal`; the JSON numbers map to TypeScript `number`.
@@ -47,7 +50,7 @@ When adding files, organize them by feature or responsibility and follow the con
 - Prefer the simplest implementation that satisfies the current requirements. Avoid premature generalization and unnecessary libraries.
 - Keep files cohesive, names explicit, and public APIs small. Maintain consistent ordering of imports, declarations, configuration blocks, and folders.
 - Preserve type safety. Do not silence errors with unsafe casts, `any`, broad exception swallowing, or disabled checks.
-- Write comments in English. Add comments only where they explain intent, a non-obvious constraint, or a trade-off; do not narrate self-explanatory code.
+- Keep documentation, comments, logs, and technical error text in English. Keep UI messages and listing content in Spanish, including frontend errors intended for display. Write comments in English. Add comments only where they explain intent, a non-obvious constraint, or a trade-off; do not narrate self-explanatory code.
 - Validate data at system boundaries and return useful, stable errors without exposing secrets or internal implementation details.
 - Do not log credentials, authorization headers, full environment dumps, or sensitive provider responses.
 - Update tests and documentation when behavior, configuration, commands, or environment variables change.
@@ -60,12 +63,14 @@ When adding files, organize them by feature or responsibility and follow the con
 - Keep `App.tsx` focused on screen composition. Move reusable UI, API access, domain types, and feature logic into clearly named modules under `frontend/src/` as the application grows.
 - Separate server communication from presentation. Centralize the backend base URL and request handling; do not scatter `fetch` calls or endpoint strings across components.
 - Keep HTTP access in `frontend/src/api/listings.ts` and let the feature hook coordinate loading, result, error, and cancellation state. Keep runtime response validation at the API boundary.
+- Preserve the hook's discriminated idle/loading/success/error state and synchronous in-flight guard. Editing or unmounting must abort the client request; stale responses must not replace newer input. The current client timeout is 65 seconds; it does not guarantee cancellation of an already-running provider call.
 - Model request, success, loading, empty, malformed-response, and error states explicitly. Prevent duplicate submissions while a request is in progress.
 - Use strict TypeScript types for API contracts. Treat network responses as untrusted and validate or defensively narrow them before rendering.
 - Build accessible UI: semantic HTML, associated labels, keyboard support, visible focus, meaningful alternative text, and status/error announcements where appropriate.
 - Keep styling consistent with the existing `frontend/src/styles/` structure. Avoid duplicated CSS declarations and unexplained magic values.
 - Never expose an AI-provider secret through Vite variables, frontend source, browser storage, query parameters, or requests made directly from the browser. Variables prefixed with `VITE_` are client-visible and therefore must never contain secrets.
 - Before finishing a frontend change, run from `frontend/`:
+  - `npm test`
   - `npm run lint`
   - `npm run build`
 - Add focused frontend tests when meaningful behavior is introduced. If a test framework is added, justify the dependency and keep the scripts documented.
@@ -121,6 +126,8 @@ When adding files, organize them by feature or responsibility and follow the con
 - Keep the product scope to one screen and one backend endpoint unless the user explicitly expands it.
 - Provide a no-key mock mode that works immediately after cloning and includes a controlled broken/nonsensical response scenario.
 - Include selected meaningful tests and explain in the README why those areas were tested.
+- Keep README in English with Windows CMD and Linux Bash run instructions, prerequisites as download links, Gemini key setup, repository layout, and mock scenario purposes/expected results. Do not reintroduce terminal tool-installation guides unless requested.
+- Preserve the author-provided 8-9 hours of work and proposed tag-graph/comparable-listing pricing improvements. Clearly identify these features as proposals, not implemented behavior.
 - Keep README run instructions accurate for frontend, backend, environment variables, and mock mode.
 - Preserve `AI_JOURNEY.md` as a truthful first-person account. Ask the user for personal details rather than fabricating experiences, prompts, time spent, or gaps in understanding.
 
