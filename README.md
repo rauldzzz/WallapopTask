@@ -7,19 +7,19 @@ Frontend de una sola pantalla inspirado en la página incluida en wallapop_web_s
 Desde frontend/, ejecuta npm ci y npm run dev. Abre la dirección que muestra Vite.
 Para verificar el código: npm run lint y npm run build. npm run preview sirve la compilación.
 
-La cabecera, el menú lateral y las categorías son estáticos. El resumen admite hasta 50 caracteres, como la referencia. Continuar se habilita con texto distinto de espacios y muestra una confirmación local; editar el texto permite continuar de nuevo. No publica anuncios, no llama al backend y no requiere credenciales ni variables de entorno.
+La cabecera, el menú lateral y las categorías son estáticos. El resumen admite hasta 50 caracteres, como la referencia. Continuar envía la descripción al backend y muestra título, etiquetas y rango de precios. Requiere al menos 3 caracteres después de recortar espacios. Incluye carga, errores y reintento; editar cancela la petición anterior y limpia el resultado. No publica anuncios. Las credenciales permanecen en el backend.
 
 La paleta de src/styles/index.css usa los valores exactos del CSS aportado. Segoe UI, con alternativa Arial, sustituye a Wallie. El logo y el avatar proceden de la referencia. Los SVG similares son Font Awesome Free 6.7.2, del catálogo presentado en [W3Schools](https://www.w3schools.com/icons/fontawesome_icons_intro.asp), descargados del [repositorio oficial](https://github.com/FortAwesome/Font-Awesome/tree/6.x/svgs/solid) a src/assets/icons/. Su licencia y atribución están en esa carpeta.
 
-Verificación manual: estado vacío, texto compuesto solo por espacios, límite de 50 caracteres, activación del botón, confirmación y edición posterior. Se revisa también la pantalla en escritorio y móvil. Estos casos cubren la única interacción local; no se añade un framework de pruebas para esta maqueta.
+Verificación manual: estado vacío, texto compuesto solo por espacios, límite de 50 caracteres, activación del botón, confirmación y edición posterior. Se revisa también la pantalla en escritorio y móvil. Las pruebas automatizadas del cliente REST se describen en la sección Flujo REST local.
 
 ## Organización del frontend
 
 La aplicación está integrada en frontend/ del repositorio. src/App.tsx compone la pantalla y src/main.tsx la monta.
 
-Los componentes de UI están en src/components/: Header, CategoryNavigation, Sidebar, UserProfile, ListingCategories, ProductSummaryForm, SummaryField, Avatar e Icon. El estado del resumen y su confirmación permanece en ProductSummaryForm; SummaryField recibe el valor y el manejador de cambios mediante props. Icon solo admite nombres de SVG existentes mediante un tipo derivado de sus imports.
+Los componentes de UI están en src/components/: Header, CategoryNavigation, Sidebar, UserProfile, ListingCategories, ProductSummaryForm, ListingSuggestion, SummaryField, Avatar e Icon. El hook src/hooks/useProductSummary.ts gestiona el estado, la validación, el envío y los estados de la sugerencia; ProductSummaryForm compone la interfaz y conecta sus eventos al hook; SummaryField recibe el valor y el manejador de cambios mediante props. Icon solo admite nombres de SVG existentes mediante un tipo derivado de sus imports.
 
-Los estilos se mantienen en src/styles/ y las imágenes y los SVG en src/assets/, siguiendo la estructura del proyecto. No se añaden dependencias ni cambia el comportamiento del formulario.
+Los estilos se mantienen en src/styles/ y las imágenes y los SVG en src/assets/, siguiendo la estructura del proyecto. Los contratos TypeScript están en src/model/listing.ts: SuggestionRequest contiene description; ListingRequest refleja la respuesta del backend con title, tags y priceRange (min y max numéricos). useProductSummary mantiene un SuggestionRequest actualizado desde SummaryField y recorta espacios al continuar. src/api/listings.ts centraliza el POST y valida el JSON recibido en ejecución antes de mostrarlo. ListingSuggestion presenta el resultado. No se añaden dependencias.
 
 ## Backend: Spring AI
 
@@ -115,7 +115,19 @@ Ejecuta .\gradlew.bat test o ./gradlew test desde backend/. Las pruebas cubren e
 
 ## Pendiente
 
-Conectar el frontend al endpoint, representar carga/resultado/errores y comprobar Gemini con una clave válida. Esta integración no realiza una llamada real ni modifica AI_JOURNEY.md.
+Comprobar el flujo con credenciales propias y revisar la calidad de las sugerencias reales. Esta integración no realiza una llamada real ni modifica AI_JOURNEY.md.
 
 Tiempo invertido: pendiente de completar por el autor.
-Siguiente paso: integrar y probar el flujo completo frontend-backend.
+Siguiente paso: revisar la calidad de las sugerencias y preparar el despliegue.
+
+## Flujo REST local
+
+1. Desde backend/, ejecuta `.\gradlew.bat bootRun` (mock sin clave por defecto).
+2. Desde frontend/, ejecuta `npm ci` y `npm run dev`.
+3. Abre la dirección de Vite, escribe una descripción y pulsa Continuar.
+
+Vite reenvía `/api` a `http://localhost:8080`, tanto en desarrollo como en `npm run preview`. Reinicia Vite si ya estaba abierto antes del cambio de configuración. El navegador utiliza el mismo origen y no necesita CORS. Un despliegue debe configurar su propio proxy `/api` al backend: el proxy de Vite no forma parte de los archivos estáticos compilados.
+
+Para probar errores de modelo, reinicia el backend con `MOCK_SCENARIO=MALFORMED` o `NONSENSICAL`; la pantalla mostrará el error y permitirá reintentar. Para modo real utiliza `MOCK_MODE=false` y `GEMINI_API_KEY` exclusivamente en el proceso backend.
+
+`npm test` usa el runner integrado de Node (Node 22.18+ o 24) sin dependencias nuevas. Cubre contrato POST, validación de datos, respuesta vacía/JSON roto y errores HTTP/red porque son las fronteras de la integración. `npm run lint` y `npm run build` verifican el código y la compilación. Revisar en navegador carga, edición durante una petición, reintento y presentación de resultados.

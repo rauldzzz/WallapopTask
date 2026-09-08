@@ -1,29 +1,27 @@
-import { useState, type FormEvent } from 'react'
+import type { FormEvent } from 'react'
+import useProductSummary from '../hooks/useProductSummary'
 import SummaryField from './SummaryField'
+import ListingSuggestion from './ListingSuggestion'
 
 export default function ProductSummaryForm() {
-  const [summary, setSummary] = useState('')
-  const [confirmed, setConfirmed] = useState(false)
+  const { request, state, canSubmit, maxLength, confirmSummary, updateSummary } = useProductSummary()
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (summary.trim()) setConfirmed(true)
-  }
-
-  function updateSummary(value: string) {
-    setSummary(value)
-    setConfirmed(false)
+    void confirmSummary()
   }
 
   return (
     <form className="panel" onSubmit={submit}>
       <h2>Información del producto</h2>
       <p className="subtitle">¿Qué vendes? Proporciona toda la información relevante</p>
-      <SummaryField value={summary} onChange={updateSummary} maxLength={50} />
-      <button disabled={!summary.trim() || confirmed} type="submit">Continuar</button>
+      <SummaryField value={request.description} onChange={updateSummary} maxLength={maxLength} />
+      <button disabled={!canSubmit} type="submit">{state.status === 'loading' ? 'Generando…' : state.status === 'error' ? 'Reintentar' : 'Continuar'}</button>
       <p className="confirmation" role="status">
-        {confirmed ? 'Resumen preparado. Esta demo estática no publica ni envía el producto.' : ''}
+        {state.status === 'loading' ? 'Generando sugerencia…' : state.status === 'success' ? 'Sugerencia preparada.' : ''}
       </p>
+      {state.status === 'error' && <p role="alert">{state.message}</p>}
+      {state.status === 'success' && <ListingSuggestion listing={state.result} />}
     </form>
   )
 }

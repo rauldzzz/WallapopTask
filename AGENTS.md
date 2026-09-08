@@ -11,16 +11,34 @@ Before changing code, inspect the relevant files and preserve the established pr
 ## Repository layout
 
 - `frontend/`: React 19, TypeScript, and Vite application.
+- `frontend/src/components/`: UI components; `App.tsx` composes the screen.
+- `frontend/src/hooks/`: feature state and actions. `useProductSummary` owns description editing, validation, and confirmation.
+- `frontend/src/model/listing.ts`: TypeScript contracts matching the backend DTOs. Keep the existing singular `model` folder.
 - `frontend/src/assets/`: imported image assets.
 - `frontend/src/styles/`: shared styles. Keep component-specific styles close to the component only if the project adopts that convention consistently.
 - `backend/`: Spring Boot application written in Kotlin and built with the Gradle wrapper.
 - `backend/src/main/kotlin/com/wallapoptest/listing_assistant/`: backend production code.
+  - `controller/`: HTTP endpoint and input JSON configuration.
+  - `service/`: suggestion conversion and business validation.
+  - `model/`: `SuggestionRequest`, `ListingRequest`, and `PriceRange` DTOs.
+  - `aiassistant/`: provider interface, Gemini and mock implementations, prompts, client configuration, and configuration properties.
+  - `error/`: exceptions and consistent HTTP error responses.
 - `backend/src/main/resources/application.yaml`: non-secret Spring configuration and environment-variable references.
+- `backend/src/main/resources/mock/`: saved valid, malformed, and nonsensical AI responses.
 - `backend/src/test/`: backend tests.
 - `README.md`: setup, run instructions, mock-mode instructions, time spent, next steps, and rationale for selected tests.
 - `AI_JOURNEY.md`: honest record of AI usage required by the take-home brief. Do not invent its contents on the user's behalf.
 
 When adding files, organize them by feature or responsibility and follow the conventions already present. Do not create parallel folders that serve the same purpose, barrel files with no clear value, or generic `utils` modules for code used only once.
+
+## Current implementation and API contract
+
+- The frontend sends descriptions through src/api/listings.ts to POST /api/listings/suggestions, validates the response at runtime, and displays ListingSuggestion. useProductSummary owns loading, success, error, cancellation, and retry behavior. Vite proxies /api to localhost:8080 for dev and preview; production hosting needs an equivalent reverse proxy.
+- `SummaryField` is controlled through props. `useProductSummary` maintains a `SuggestionRequest`, trims the description on confirmation, requires at least 3 trimmed characters, and preserves the reference UI's 50-character limit. The backend accepts descriptions of 3-2000 characters; the narrower frontend limit is intentional for the current UI.
+- The endpoint is `POST /api/listings/suggestions`, with JSON body `{"description":"..."}`.
+- The response is named `ListingRequest` in the existing code, despite being an output DTO: `{"title":"...","tags":["..."],"priceRange":{"min":40.00,"max":50.00}}`. Preserve the contract unless a change is requested.
+- Titles are 3-120 characters; tags are 3-5 distinct values of 1-30 characters. Both range bounds must be positive, at most 8 integer digits and 2 decimal places, with `min <= max`. Kotlin uses `BigDecimal`; the JSON numbers map to TypeScript `number`.
+- Errors have the shape `{"code":"...","message":"..."}`: 400 for invalid input, 502 for invalid model output, 503 for provider failures, and 504 for provider timeouts.
 
 ## General engineering rules
 
@@ -37,8 +55,11 @@ When adding files, organize them by feature or responsibility and follow the con
 ## Frontend: React and TypeScript
 
 - Use functional React components and hooks. Keep state as local as practical and derive values instead of storing duplicate state.
+- Keep form and feature logic in responsibility-focused custom hooks, following `useProductSummary`. Components render UI and connect DOM events to hook actions; DOM concerns such as `preventDefault` can remain in the component. Hooks should not depend on form events just to execute a domain action.
+- Do not require one hook per component or screen. Extract by cohesive responsibility; purely presentational components do not need their own hooks. Separate invocations of a hook do not automatically share state.
 - Keep `App.tsx` focused on screen composition. Move reusable UI, API access, domain types, and feature logic into clearly named modules under `frontend/src/` as the application grows.
 - Separate server communication from presentation. Centralize the backend base URL and request handling; do not scatter `fetch` calls or endpoint strings across components.
+- Keep HTTP access in `frontend/src/api/listings.ts` and let the feature hook coordinate loading, result, error, and cancellation state. Keep runtime response validation at the API boundary.
 - Model request, success, loading, empty, malformed-response, and error states explicitly. Prevent duplicate submissions while a request is in progress.
 - Use strict TypeScript types for API contracts. Treat network responses as untrusted and validate or defensively narrow them before rendering.
 - Build accessible UI: semantic HTML, associated labels, keyboard support, visible focus, meaningful alternative text, and status/error announcements where appropriate.
@@ -48,12 +69,14 @@ When adding files, organize them by feature or responsibility and follow the con
   - `npm run lint`
   - `npm run build`
 - Add focused frontend tests when meaningful behavior is introduced. If a test framework is added, justify the dependency and keep the scripts documented.
+- The current lint command uses Oxlint; the build runs TypeScript checks and Vite. The npm test command uses Node's built-in runner with TypeScript stripping (Node 22.18+ or 24), without additional dependencies. Run it for integration changes. Do not claim lint/build verifies browser interactions.
 
 ## Backend: Spring Boot and Kotlin
 
 - Use Kotlin idioms and constructor injection. Prefer immutable `data class` request/response DTOs, `val`, null-safe code, and small functions.
 - Keep HTTP concerns, application/service logic, provider integration, configuration, and domain validation separate. Controllers should translate HTTP input/output and delegate behavior rather than contain provider logic.
 - Use Spring configuration properties for grouped application settings and validate required configuration. Do not read environment variables ad hoc throughout the codebase.
+- Keep Google-specific integration in `aiassistant/`. `AssistantProperties` binds `app.ai` and is registered by `@EnableConfigurationProperties`; `AssistantConfiguration` creates the Google `Client`, Spring AI `ChatModel`, and `ChatClient` only when mock mode is disabled. `ListingService` uses `BeanOutputConverter` and validates output for both providers.
 - Validate incoming descriptions with Jakarta Bean Validation and explicit size limits. Return appropriate HTTP status codes and a consistent error shape.
 - Treat AI output as untrusted. Validate its structure and business constraints, handle timeouts/provider failures, and never pass malformed content to the client as a successful response.
 - Keep mock and real provider implementations behind the same interface. Mock mode must not initialize or call the external provider and must support both a valid saved response and a controlled invalid/nonsensical response for testing resilience.
@@ -66,6 +89,8 @@ When adding files, organize them by feature or responsibility and follow the con
 ## Gradle and dependency management
 
 - Use the checked-in Gradle wrapper; do not require a globally installed Gradle version.
+- Current backend versions are Java 21, Kotlin 1.9.25, Spring Boot 3.5.8, and Spring AI BOM 1.1.2. Use `org.springframework.ai:spring-ai-starter-model-google-genai` from Maven Central; do not restore the old Vertex starter or manual REST integration.
+- IntelliJ must link `backend/build.gradle.kts`, use the Gradle wrapper, and select Gradle JVM 21. Reload Gradle after build changes before treating unresolved IDE imports as proof of an incompatible dependency.
 - Review `backend/build.gradle.kts` before using a library. Prefer Spring Boot's dependency management and the existing Spring AI BOM where applicable.
 - Add only dependencies required by implemented code. Remove unused dependencies and commented-out dependency experiments.
 - Keep Kotlin, Java toolchain, Spring Boot, plugins, and BOM versions compatible. Do not upgrade them opportunistically as part of an unrelated change.
@@ -78,7 +103,13 @@ When adding files, organize them by feature or responsibility and follow the con
 - The expected AI credential is `GEMINI_API_KEY` unless the provider is deliberately changed. Real provider mode must fail fast with a clear configuration error when the required credential is absent or blank.
 - Never give a secret property a usable or fake-looking default in committed configuration. In particular, do not use patterns such as `${GEMINI_API_KEY:some-value}`. Reference it as `${GEMINI_API_KEY}` only in configuration that is loaded for real mode, or bind it through validated conditional configuration.
 - `MOCK_MODE` controls provider-free execution and should default to `true` for easy evaluation unless the user changes that requirement. When mock mode is enabled, no API key should be required and no external AI request should occur.
+- Current environment variables: `MOCK_MODE` (default `true`), `MOCK_SCENARIO` (`VALID`, `MALFORMED`, or `NONSENSICAL`; default `VALID`), `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.5-flash-lite`), and `GEMINI_TIMEOUT_SECONDS` (default 20, allowed 1-60). Keep defaults consistent in YAML, `AssistantProperties`, and README when changing them.
+- The empty `${GEMINI_API_KEY:}` fallback supports mock startup; conditional validation rejects missing or blank keys in real mode. Do not replace it with a nonempty placeholder or require credentials in mock mode.
+- Gemini uses API-key authentication with `vertexAI(false)`; no Vertex project, region, or credential file is required. Environment overrides take precedence over the model default. Model listing alone does not prove generation access or free quota; verify actual provider errors and current documentation when diagnosing availability.
+- Preserve the current disabling of automatic chat/text-embedding models and exclusion of `GoogleGenAiEmbeddingConnectionAutoConfiguration`: clients are configured explicitly, and unused embedding configuration must not require credentials. Keep `BeanOutputConverter` logging disabled because conversion errors can log raw model output.
+- Provider calls currently use one attempt at both SDK and Spring retry layers, JSON output, temperature 0.2, and a maximum of 2048 output tokens. Review model compatibility before changing these options.
 - Environment variables configured in IntelliJ IDEA Community run configurations are local developer settings. Code may rely on their names, but must not assume those IDE values exist in tests, CLI runs, CI, or another developer's machine.
+- PowerShell environment variables apply to processes started from that terminal; they do not automatically configure IntelliJ's Run button. `.env` files are not loaded automatically.
 - Keep committed example environment files limited to variable names and safe placeholders. Ensure real `.env` files and IDE workspace/run configuration files containing values are ignored by Git.
 - Document required variable names, mock/real mode behavior, and CLI/IDE setup in `README.md` without including credential values.
 - Keep AI calls on the backend. Configure sensible connect/read timeouts and avoid returning raw provider errors or prompts when they may contain sensitive data.
@@ -104,3 +135,5 @@ Before reporting a task complete:
 5. Confirm the endpoint contract and frontend types remain aligned.
 6. Update `README.md` and tests when setup or behavior changed.
 7. Report what changed, which checks ran, and any remaining limitation. Do not claim a check passed if it was not run.
+
+For documentation-only changes, verify the documented facts against the relevant source/configuration and review the diff; application builds and tests are not required unless executable behavior also changes.
