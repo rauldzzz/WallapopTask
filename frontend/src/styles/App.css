@@ -50,3 +50,7 @@ form button:disabled { background: var(--background-low); color: var(--content-l
 @media (max-width: 1199px) { .topbar { gap: 20px; padding-inline: 24px; } .header-item { flex-direction: column; gap: 4px; } .search-preview span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } }
 @media (max-width: 991px) { aside { display: none; } .topbar { gap: 16px; } .brand { width: 140px; } .header-item { display: none; } }
 @media (max-width: 767px) { .topbar { min-height: 80px; padding: 16px; } .brand { width: 120px; } .sell-preview { padding: 10px; font-size: 14px; } .search-preview { height: 40px; padding: 0 10px; } .search-preview span { display: none; } .category-nav { padding-inline: 16px; gap: 24px; } main { min-height: calc(100dvh - 130px); padding: 24px 16px; } .listing-categories { flex-wrap: wrap; justify-content: center; max-width: 340px; align-self: center; } .field-details { padding-inline: 0; } h1 { font-size: 22px; } }
+
+.listing-suggestion { border-top: 1px solid var(--background-mid); padding-top: 16px; display: grid; gap: 12px; overflow-wrap: anywhere; }
+.suggestion-tags { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; list-style: none; }
+.suggestion-tags li { border-radius: 16px; padding: 4px 12px; background: var(--brand-low); color: var(--brand-high); }

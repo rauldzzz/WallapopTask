@@ -11,7 +11,7 @@ export default function SummaryField({ value, onChange, maxLength }: SummaryFiel
         <label htmlFor="summary">Resumen del producto</label>
         <input
           id="summary"
-          name="summary"
+          name="description"
           value={value}
           maxLength={maxLength}
           required
@@ -20,7 +20,7 @@ export default function SummaryField({ value, onChange, maxLength }: SummaryFiel
         />
       </div>
       <div className="field-details">
-        <span id="summary-help">Ejemplo: Sofá de dos plazas de cuero rojo marca Cozy. Buen estado.</span>
+        <span id="summary-help">Mínimo 3 caracteres. Ejemplo: Sofá de cuero rojo en buen estado.</span>
         <span id="summary-count">{value.length}/{maxLength}</span>
       </div>
     </div>
