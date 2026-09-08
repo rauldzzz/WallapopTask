@@ -13,23 +13,23 @@ data class ApiError(val code: String, val message: String)
 class ApiExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun invalidDescription() = error(HttpStatus.BAD_REQUEST, "INVALID_DESCRIPTION",
-        "La descripción debe contener entre 3 y 2000 caracteres y no estar vacía.")
+        "The description should contain between 3 and 2000 characters and cannor be empty.")
 
     @ExceptionHandler(HttpMessageNotReadableException::class)
     fun invalidRequest() = error(HttpStatus.BAD_REQUEST, "INVALID_REQUEST",
-        "Envía un objeto JSON con description de tipo texto.")
+        "Send a JSON object with type text description.")
 
     @ExceptionHandler(InvalidSuggestionException::class)
     fun invalidResponse() = error(HttpStatus.BAD_GATEWAY, "INVALID_MODEL_RESPONSE",
-        "No se ha podido obtener una sugerencia válida.")
+        "The suggest was not valid.")
 
     @ExceptionHandler(ProviderTimeoutException::class)
     fun timeout() = error(HttpStatus.GATEWAY_TIMEOUT, "PROVIDER_TIMEOUT",
-        "El servicio de sugerencias ha tardado demasiado.")
+        "The suggest service had a timeout.")
 
     @ExceptionHandler(ProviderUnavailableException::class)
     fun unavailable() = error(HttpStatus.SERVICE_UNAVAILABLE, "PROVIDER_UNAVAILABLE",
-        "El servicio de sugerencias no está disponible.")
+        "The suggest service is unavailable.")
 
     private fun error(status: HttpStatus, code: String, message: String) =
         ResponseEntity.status(status).body(ApiError(code, message))
