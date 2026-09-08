@@ -36,18 +36,18 @@ export async function suggestListing(request: SuggestionRequest, signal?: AbortS
       signal,
     })
   } catch {
-    throw new Error('No se pudo conectar con el servidor. Comprueba la conexión e inténtalo de nuevo.')
+    throw new Error('It was impossible to connect to the server. Check the connection and try again.')
   }
   if (!response.ok) {
     const messages: Record<number, string> = {
-      400: 'Revisa la descripción del producto e inténtalo de nuevo.',
-      502: 'La sugerencia recibida no es válida. Inténtalo de nuevo.',
-      503: 'El servicio de sugerencias no está disponible. Inténtalo más tarde.',
-      504: 'El servicio tardó demasiado en responder. Inténtalo de nuevo.',
+      400: 'Check the description of the product and try again.',
+      502: 'The received suggestion is not valid. Try again.',
+      503: 'The suggestion service is not available. Try again later.',
+      504: 'The service took too long to respond. Try again.',
     }
-    throw new Error(messages[response.status] ?? 'No se pudo obtener la sugerencia. Inténtalo de nuevo.')
+    throw new Error(messages[response.status] ?? 'It was impossible to obtain the suggestion. Try again.')
   }
   const result: unknown = await response.json().catch(() => null)
-  if (!isListingRequest(result)) throw new Error('El servidor devolvió una respuesta no válida. Inténtalo de nuevo.')
+  if (!isListingRequest(result)) throw new Error('The server returned an invalid response. Try again.')
   return result
 }
